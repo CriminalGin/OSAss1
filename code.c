@@ -1,9 +1,9 @@
 /*
-Created by Gin, Feb 29, 2016
+Created by Gin, Feb 29, 2016, CUHK
 */
 
 #include <stdio.h>
-#include <string.h>	// Needed by strtok()
+#include <string.h>	// Needed by strtok(), strcmp()
 #include <limits.h>	// Needed by PATH_MAX
 #include <unistd.h>	// Needed by getcwd(), chdir(), exec*()
 #include <stdlib.h>	// Needed by setenv()
@@ -36,7 +36,6 @@ char **TokenInput(char *input){
 	int i = 0;
 	tmp = strtok(input, " ");// the second variable is the character you wanna to skip
 	while(tmp != NULL){ 
-//		printf("tmp = %s %d\n", tmp, i);
 		token[i] = (char *)malloc(sizeof(char) * strlen(tmp));
 		strcpy(token[i], tmp);
 		tmp = strtok(NULL, " ");
@@ -46,14 +45,58 @@ char **TokenInput(char *input){
 }
 
 int PerformBuiltIn(char **token){
-	if(strcmp(token[0], "exit") && token[1] == NULL){
+	if((strcmp(token[0], "exit") == 0) && (token[1] == NULL)){
 		exit(0);	// 0 is the return value when the program exits
 	}
-	else if(token[0] == "cd"){
-		if(chdir(getenv("HOME")) == 0){ return 0; }
-		else{  return -1; }
+	else if(strcmp(token[0], "cd") == 0){
+		if(token[1] == NULL){
+			if(chdir(getenv("HOME")) != -1){ return 0; }
+			else{  return -1; }
+		}
+		else{
+			if(strcmp(token[1], "~") == 0){
+				if(chdir(getenv("HOME")) != -1){ return 0; }
+				else{  return -1; }
+			}
+			else{
+				if(chdir(token[1]) != -1){ return 0; }
+				else{ 
+					printf("3150 shell: cd %s: No such file or directory\n", token[1]);
+					return -1; 
+				}
+			}
+		}
 	}
 	return 0;
+}
+
+int PerformCommand(char **token){
+	if(!fork()){
+		printf("I am a child and my pid is %d\n", getpid());
+		setenv("PATH", "/bin:/usr/bin:.", 1);
+		signal(SIGINT, SIG_DFL);
+		signal(SIGQUIT, SIG_DFL);
+		signal(SIGTERM, SIG_DFL);
+		signal(SIGTSTP, SIG_DFL);
+		int ret = execvp(token[0], token);
+		if(ret == -1){ printf("[%s]: command not found\n", token[0]); return ret; }
+		else{ printf("[%s]: unknown error\n", token[0]); return ret; }
+		return ret;
+	}
+	else{
+		wait(NULL);
+	}
+}
+
+int Perform(char **token){
+	if(strcmp(token[0], "cd") == 0 || strcmp(token[0], "exit") == 0){ 
+		PerformBuiltIn(token);
+		return 0;
+	}
+	else{
+		PerformCommand(token);
+		return 0;
+	}
 }
 
 void HandleSig(){
@@ -61,30 +104,24 @@ void HandleSig(){
 	signal(SIGQUIT, SIG_IGN);
 	signal(SIGTERM, SIG_IGN);
 	signal(SIGTSTP, SIG_IGN);
-	if(!fork()){
-		signal(SIGINT, SIG_DFL);
-		signal(SIGQUIT, SIG_DFL);
-		signal(SIGTERM, SIG_DFL);
-		signal(SIGTSTP, SIG_DFL);
-		printf("[%d]I am Child..\n", getpid());
-		while(1){}
-	}
-	else{
-		wait(NULL);
-		printf("[%d]I am super parent, kill me if you can\n", getpid());
-		while(1){}
-	}
 }
 
 int main(int argc, char *argv[])
 {
-	// HandleSig();
+	printf("My pid is %d\n", getpid());
+	HandleSig();
 	char input[MAXLENOFCOMMAND];
-	while(1)
-	{
-		fgets(input, MAXLENOFCOMMAND, stdin);
-		char **token = TokenInput(input);
-		PerformBuiltIn(token);	
+	char buf[PATH_MAX + 1];
+	while(1){
+		if(getcwd(buf, PATH_MAX + 1) !=NULL ){
+			printf("[3150 shell:%s]$ ", buf);
+			fgets(input, MAXLENOFCOMMAND, stdin);
+			if(strcmp(input, "\n") != 0){
+				input[strlen(input) - 1] = '\0';
+				char **token = TokenInput(input);
+				Perform(token);
+			}
+		}
 	}
 #if 0
 	printf("\nPress Enter to execute ls...");
@@ -111,25 +148,6 @@ int main(int argc, char *argv[])
 
 	evecvp(globbuf.gl_pathv[0], globbuf.gl_pathv);
 #endif
-
-#if 0
-	char cwd[PATH_MAX + 1];
-	char input[255];
-	if(getcwd(cwd, PATH_MAX + 1) != NULL){
-		printf("Current Working Dir: %s\n", cwd);
-		printf("Where do you want to go?:");
-		fgets(input, 255, stdin);
-		input[strlen(input) - 1] = '\0';
-		if(chdir(input) != -1){
-			getcwd(cwd, PATH_MAX + 1);
-			printf("Current Working Dir: %s\n", cwd);
-		}
-	}
-	else{
-		printf("Error Occured!\n");
-	}
-#endif
-
 	return 0;
 }
 
