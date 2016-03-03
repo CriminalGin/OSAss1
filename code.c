@@ -36,7 +36,7 @@ char **TokenInput(char *input){
 	int i = 0;
 	tmp = strtok(input, " ");// the second variable is the character you wanna to skip
 	while(tmp != NULL){ 
-		printf("tmp = %s %d\n", tmp, i);
+//		printf("tmp = %s %d\n", tmp, i);
 		token[i] = (char *)malloc(sizeof(char) * strlen(tmp));
 		strcpy(token[i], tmp);
 		tmp = strtok(NULL, " ");
@@ -45,38 +45,18 @@ char **TokenInput(char *input){
 	return token;
 }
 
-
-
-int PerformBuiltIn(){
-	char *command[] = {"shutdown", NULL};
-	execvp(*command, command);
+int PerformBuiltIn(char **token){
+	if(strcmp(token[0], "exit") && token[1] == NULL){
+		exit(0);	// 0 is the return value when the program exits
+	}
+	else if(token[0] == "cd"){
+		if(chdir(getenv("HOME")) == 0){ return 0; }
+		else{  return -1; }
+	}
 	return 0;
 }
 
-int main(int argc, char *argv[])
-{
-	char input[MAXLENOFCOMMAND];
-	fgets(input, MAXLENOFCOMMAND, stdin);
-	char **tmp = TokenInput(input);
-	int i = 0;
-	while(tmp[i] != NULL){
-		printf("%s\n", tmp[i]);
-		++i;
-	}
-#if 0
-	printf("\nPress Enter to execute ls...");
-	while(getchar() != '\n');
-	pid_t child_pid;
-	if(!(child_pid = fork())){	
-		char *arglist[] = {"ls", NULL};
-		execvp(*arglist, arglist);
-	}
-	else{
-		wait(NULL);
-	}
-#endif
-
-#if 0
+void HandleSig(){
 	signal(SIGINT, SIG_IGN);
 	signal(SIGQUIT, SIG_IGN);
 	signal(SIGTERM, SIG_IGN);
@@ -94,8 +74,31 @@ int main(int argc, char *argv[])
 		printf("[%d]I am super parent, kill me if you can\n", getpid());
 		while(1){}
 	}
+}
+
+int main(int argc, char *argv[])
+{
+	// HandleSig();
+	char input[MAXLENOFCOMMAND];
+	while(1)
+	{
+		fgets(input, MAXLENOFCOMMAND, stdin);
+		char **token = TokenInput(input);
+		PerformBuiltIn(token);	
+	}
+#if 0
+	printf("\nPress Enter to execute ls...");
+	while(getchar() != '\n');
+	pid_t child_pid;
+	if(!(child_pid = fork())){	
+		char *arglist[] = {"ls", NULL};
+		execvp(*arglist, arglist);
+	}
+	else{
+		wait(NULL);
+	}
 #endif
-	
+
 #if 0
 	glob_f globbuf;
 
