@@ -100,13 +100,13 @@ int PerformCommand(char **token){
 		signal(SIGINT, SIG_DFL);signal(SIGQUIT, SIG_DFL);signal(SIGTERM, SIG_DFL);signal(SIGTSTP, SIG_DFL);
 		int *starPosition = FindElement('*', token);
 		if(starPosition == NULL){
-			if(execvp(token[0], token) == -1){ 
+			if(execvp(token[0], token) == -1){
 				int errsv = errno;
 				if(errsv == 2){
 					printf("[%s]: command not found\n", token[0]); 
 				}
-				else{ printf("[%s]: unknown error\n", token[0]); }
-				exit(errsv); 
+				else if(errsv != 0){ printf("[%s]: unknown error\n", token[0]); }
+				exit(errsv);
 			}
 		}
 		else{
