@@ -4,13 +4,14 @@ Created by Gin, Feb 29, 2016, CUHK
 
 #include <stdio.h>
 #include <string.h>	// Needed by strtok(), strcmp()
-#include <limits.h>	// Needed by PATH_MAX
-#include <unistd.h>	// Needed by getcwd(), chdir(), exec*()
-#include <stdlib.h>	// Needed by setenv()
-#include <glob.h>	// Needed by glob(), glob_f
+// #include <limits.h>	// Needed by PATH_MAX
 #include <signal.h>	// Needed by signal()
+#include <unistd.h>	// Needed by getcwd(), chdir(), exec*()
+// #include <stdlib.h>	// Needed by setenv()
 #include <sys/types.h>
-#include <sys/wait.h>	// Needed by wait()
+// #include <sys/wait.h>	// Needed by wait()
+// #include <errno.h>	// Needed by errno
+#include <glob.h>	// Needed by glob(), glob_f
 
 #define MAXLENOFCOMMAND 255
 
@@ -31,8 +32,8 @@ char **TokenInput(char *input){
 #endif
 
 char **TokenInput(char *input){
-	char **token = (char **)malloc(MAXLENOFCOMMAND * sizeof(char *));
-	char *tmp = (char *)malloc(sizeof(char) * MAXLENOFCOMMAND);
+	char **token = (char **)malloc( (MAXLENOFCOMMAND + 1) * sizeof(char *));
+	char *tmp = (char *)malloc(sizeof(char) * (MAXLENOFCOMMAND + 1));
 	int i = 0;
 	tmp = strtok(input, " ");// the second variable is the character you wanna to skip
 	while(tmp != NULL){ 
@@ -78,13 +79,21 @@ int PerformCommand(char **token){
 		signal(SIGQUIT, SIG_DFL);
 		signal(SIGTERM, SIG_DFL);
 		signal(SIGTSTP, SIG_DFL);
-		int ret = execvp(token[0], token);
-		if(ret == -1){ printf("[%s]: command not found\n", token[0]); return ret; }
-		else{ printf("[%s]: unknown error\n", token[0]); return ret; }
-		return ret;
+		if(execvp(token[0], token) == -1){ 
+			int errsv = errno;
+			printf("error number is %d\n", errsv);
+			if(errsv == 2){
+				printf("[%s]: command not found\n", token[0]); 
+			}
+			else{ printf("[%s]: unknown error\n", token[0]); }
+			exit(errsv); 
+			printf("After return...\n");
+		}
+		return -1;
 	}
 	else{
 		wait(NULL);
+		printf("Return to parent\n");
 	}
 }
 
@@ -106,10 +115,20 @@ void HandleSig(){
 	signal(SIGTSTP, SIG_IGN);
 }
 
+
 int main(int argc, char *argv[])
 {
-	printf("My pid is %d\n", getpid());
-	HandleSig();
+	//printf("My pid is %d\n", getpid());
+	//HandleSig();
+	glob_f globbuf;
+
+	globbuf.gl_offs = 1;
+
+	glob("*.c", GLOB_DOOFFS | GLOB_NOCHECK, NULL, &globbuf);
+	globbuf.gl_pathv[0] = "ls";
+
+	evecvp(globbuf.gl_pathv[0], globbuf.gl_pathv);
+#if 0
 	char input[MAXLENOFCOMMAND];
 	char buf[PATH_MAX + 1];
 	while(1){
@@ -123,6 +142,7 @@ int main(int argc, char *argv[])
 			}
 		}
 	}
+#endif
 #if 0
 	printf("\nPress Enter to execute ls...");
 	while(getchar() != '\n');
@@ -134,19 +154,6 @@ int main(int argc, char *argv[])
 	else{
 		wait(NULL);
 	}
-#endif
-
-#if 0
-	glob_f globbuf;
-
-	globbuf.gl_offs = 1;
-
-	glob("*.c", GLOB_DOOFFS | GLOB_NOCHECK, NULL, &globbuf);
-	glob("*.txt", GLOB_DOOFFS | GLOB_NOCHECK | GLOB_APPEND, NULL, &globbuf);
-	glob("*.java", GLOB_DOOFFS | GLOB_NOCHECK | GLOB_APPEND, NULL, &globbuf);
-	globbuf.gl_pathv[0] = "ls";
-
-	evecvp(globbuf.gl_pathv[0], globbuf.gl_pathv);
 #endif
 	return 0;
 }

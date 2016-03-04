@@ -4,15 +4,17 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <glob.h>
 
-int main(){
-	printf("My pid is %d\n", getpid());
-	signal(SIGINT, SIG_IGN);
-	char test[10];
-	while(1){
-		printf("Before fgets...");
-		fgets(test, 10, stdin);
-		printf("After fgets: %s", test);
-	}
+
+int main(int argc, char *argv[]){
+	glob_t globbuf;
+
+	globbuf.gl_offs = 1;
+
+	glob("*.c", GLOB_DOOFFS | GLOB_NOCHECK, NULL, &globbuf);
+	globbuf.gl_pathv[0] = "ls";
+
+	execvp(globbuf.gl_pathv[0], globbuf.gl_pathv);
 	return 0;
 }
