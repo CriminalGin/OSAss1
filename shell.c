@@ -139,6 +139,7 @@ int Perform(char **token){
 
 void HandleSig(){
 	signal(SIGINT, SIG_IGN);signal(SIGQUIT, SIG_IGN);signal(SIGTERM, SIG_IGN);signal(SIGTSTP, SIG_IGN);
+	signal(SIGSTOP, SIG_DFL); signal(SIGKILL, SIG_DFL);
 }
 
 int main(int argc, char *argv[])
