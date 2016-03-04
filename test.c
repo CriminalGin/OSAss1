@@ -5,16 +5,31 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <glob.h>
-
+#include <stdlib.h>
 
 int main(int argc, char *argv[]){
-	glob_t globbuf;
+	char test[] = "*.c";
+	int i;
+	for(i = 0; i < strlen(test); ++i){
+		if(test[i] == '*'){printf("I have found *\n");	return 0;}
+	}
+	printf("I have not found *\n");
+	return -1;
+}
 
-	globbuf.gl_offs = 1;
+#if 0
+int cmpfunc(const void *a, const void *b){
+	printf("the result of %s and %s is %d\n", (char*)a, (char *)b, (*(char *)a - *(char *)b) );
+	return ( *(char *)a - *(char *)b );
+}
 
-	glob("*.c", GLOB_DOOFFS | GLOB_NOCHECK, NULL, &globbuf);
-	globbuf.gl_pathv[0] = "ls";
-
-	execvp(globbuf.gl_pathv[0], globbuf.gl_pathv);
+int main(int argc, char *argv[]){
+	char test[] = "Hello world";
+	char key = 'e';
+	printf("key is %c\n", key);
+	char *item = (char *)bsearch(&key, test, strlen(test), sizeof(char), cmpfunc);
+	if(item != NULL){printf("I have found the item\n");}
+	else{printf("I have not found the item\n");}
 	return 0;
 }
+#endif

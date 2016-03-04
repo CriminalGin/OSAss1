@@ -4,32 +4,18 @@ Created by Gin, Feb 29, 2016, CUHK
 
 #include <stdio.h>
 #include <string.h>	// Needed by strtok(), strcmp()
-// #include <limits.h>	// Needed by PATH_MAX
+#include <limits.h>	// Needed by PATH_MAX
 #include <signal.h>	// Needed by signal()
 #include <unistd.h>	// Needed by getcwd(), chdir(), exec*()
-// #include <stdlib.h>	// Needed by setenv()
+#include <stdlib.h>	// Needed by setenv()
 #include <sys/types.h>
-// #include <sys/wait.h>	// Needed by wait()
-// #include <errno.h>	// Needed by errno
+#include <sys/wait.h>	// Needed by wait()
+#include <errno.h>	// Needed by errno
 #include <glob.h>	// Needed by glob(), glob_f
 
 #define MAXLENOFCOMMAND 255
 
-#if 0
-char **TokenInput(char *input){
-	char token[MAXLENOFCOMMAND][MAXLENOFCOMMAND];
-	char *tmp = (char *)malloc(sizeof(char) * MAXLENOFCOMMAND);
-	int i = 0;
-	tmp = strtok(input, " ");// the second variable is the character you wanna to skip
-	while(tmp != NULL){ 	
-	//	token[i] = (char *)malloc(sizeof(char) * MAXLENOFCOMMAND);
-		strcpy(token[i], tmp);
-		++i;
-		tmp = strtok(NULL, " ");
-	}
-	return token;
-}
-#endif
+glob_t globbuf;
 
 char **TokenInput(char *input){
 	char **token = (char **)malloc( (MAXLENOFCOMMAND + 1) * sizeof(char *));
@@ -43,6 +29,25 @@ char **TokenInput(char *input){
 		++i;
 	}
 	return token;
+}
+
+int Count(char **token){
+	int num = 0;
+	while(token[num] != NULL){
+		++num;
+	}
+	return num;
+}
+
+int FindElement(char key, char **target){
+	int i = 0, j;
+	while(target[i] != NULL){
+		for(j = 0; j < strlen(target[i]); ++j){
+			if(target[i][j] == key){ return i; }
+		}
+		++i;
+	}
+	return -1;
 }
 
 int PerformBuiltIn(char **token){
@@ -68,32 +73,48 @@ int PerformBuiltIn(char **token){
 			}
 		}
 	}
-	return 0;
 }
 
 int PerformCommand(char **token){
 	if(!fork()){
 		printf("I am a child and my pid is %d\n", getpid());
 		setenv("PATH", "/bin:/usr/bin:.", 1);
-		signal(SIGINT, SIG_DFL);
-		signal(SIGQUIT, SIG_DFL);
-		signal(SIGTERM, SIG_DFL);
-		signal(SIGTSTP, SIG_DFL);
-		if(execvp(token[0], token) == -1){ 
-			int errsv = errno;
-			printf("error number is %d\n", errsv);
-			if(errsv == 2){
-				printf("[%s]: command not found\n", token[0]); 
+		signal(SIGINT, SIG_DFL);signal(SIGQUIT, SIG_DFL);signal(SIGTERM, SIG_DFL);signal(SIGTSTP, SIG_DFL);
+		int starPosition = FindElement('*', token);
+		if(starPosition == -1){
+			if(execvp(token[0], token) == -1){ 
+				int errsv = errno;
+				printf("error number is %d\n", errsv);
+				if(errsv == 2){
+					printf("[%s]: command not found\n", token[0]); 
+				}
+				else{ printf("[%s]: unknown error\n", token[0]); }
+				exit(errsv); 
 			}
-			else{ printf("[%s]: unknown error\n", token[0]); }
-			exit(errsv); 
-			printf("After return...\n");
 		}
-		return -1;
+		else{
+			int num = Count(token);	
+			globbuf.gl_offs = num - 1;
+
+			glob(token[starPosition], GLOB_DOOFFS | GLOB_NOCHECK, NULL, &globbuf);
+			int i;
+			for(i = 0; i < num; ++i){
+				globbuf.gl_pathv[i] = token[i];
+			}
+			if(execvp(globbuf.gl_pathv[0], globbuf.gl_pathv) == -1){
+				int errsv = errno;
+				printf("error number is %d\n", errsv);
+				if(errsv == 2){
+					printf("[%s]: command not found\n", token[0]); 
+				}
+				else{ printf("[%s]: unknown error\n", token[0]); }
+				exit(errsv); 
+			}
+		}
+
 	}
 	else{
 		wait(NULL);
-		printf("Return to parent\n");
 	}
 }
 
@@ -109,26 +130,13 @@ int Perform(char **token){
 }
 
 void HandleSig(){
-	signal(SIGINT, SIG_IGN);
-	signal(SIGQUIT, SIG_IGN);
-	signal(SIGTERM, SIG_IGN);
-	signal(SIGTSTP, SIG_IGN);
+	signal(SIGINT, SIG_IGN);signal(SIGQUIT, SIG_IGN);signal(SIGTERM, SIG_IGN);signal(SIGTSTP, SIG_IGN);
 }
-
 
 int main(int argc, char *argv[])
 {
-	//printf("My pid is %d\n", getpid());
-	//HandleSig();
-	glob_f globbuf;
-
-	globbuf.gl_offs = 1;
-
-	glob("*.c", GLOB_DOOFFS | GLOB_NOCHECK, NULL, &globbuf);
-	globbuf.gl_pathv[0] = "ls";
-
-	evecvp(globbuf.gl_pathv[0], globbuf.gl_pathv);
-#if 0
+	printf("My pid is %d\n", getpid());
+	HandleSig();
 	char input[MAXLENOFCOMMAND];
 	char buf[PATH_MAX + 1];
 	while(1){
@@ -142,19 +150,6 @@ int main(int argc, char *argv[])
 			}
 		}
 	}
-#endif
-#if 0
-	printf("\nPress Enter to execute ls...");
-	while(getchar() != '\n');
-	pid_t child_pid;
-	if(!(child_pid = fork())){	
-		char *arglist[] = {"ls", NULL};
-		execvp(*arglist, arglist);
-	}
-	else{
-		wait(NULL);
-	}
-#endif
 	return 0;
 }
 
