@@ -74,15 +74,20 @@ int PerformBuiltIn(char **token){
 			else{  return -1; }
 		}
 		else{
-			if(strcmp(token[1], "~") == 0){
-				if(chdir(getenv("HOME")) != -1){ return 0; }
-				else{  return -1; }
+			if(token[2] != NULL){
+				printf("cd: wrong number of arguments\n");
 			}
 			else{
-				if(chdir(token[1]) != -1){ return 0; }
-				else{ 
-					printf("3150 shell: cd %s: No such file or directory\n", token[1]);
-					return -1; 
+				if(strcmp(token[1], "~") == 0){
+					if(chdir(getenv("HOME")) != -1){ return 0; }
+					else{  return -1; }
+				}
+				else{
+					if(chdir(token[1]) != -1){ return 0; }
+					else{ 
+						printf("[%s]: cannot change directory \n", token[1]);
+						return -1;
+					}
 				}
 			}
 		}
