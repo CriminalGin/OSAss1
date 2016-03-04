@@ -29,22 +29,6 @@ char **TokenInput(char *input){
 	return token;
 }
 
-int Count1dChar(char *token){
-	int num = 0;
-	while((token + num) != NULL){
-		++num;
-	}
-	return num;
-}
-
-int Count1dInt(int *token){
-	int num = 0;
-	while((token + num) != NULL){
-		++num;
-	}
-	return num;
-}
-
 int Count2d(char **token){
 	int num = 0;
 	while(token[num] != NULL){
@@ -52,7 +36,6 @@ int Count2d(char **token){
 	}
 	return num;
 }
-
 
 int *FindElement(char key, char **target){
 	int i = 0, j, k = 1;
@@ -102,14 +85,12 @@ int PerformBuiltIn(char **token){
 #if 1
 int PerformCommand(char **token){
 	if(!fork()){
-		printf("I am a child and my pid is %d\n", getpid());
 		setenv("PATH", "/bin:/usr/bin:.", 1);
 		signal(SIGINT, SIG_DFL);signal(SIGQUIT, SIG_DFL);signal(SIGTERM, SIG_DFL);signal(SIGTSTP, SIG_DFL);
 		int *starPosition = FindElement('*', token);
 		if(starPosition == NULL){
 			if(execvp(token[0], token) == -1){ 
 				int errsv = errno;
-				printf("error number is %d\n", errsv);
 				if(errsv == 2){
 					printf("[%s]: command not found\n", token[0]); 
 				}
@@ -131,7 +112,6 @@ int PerformCommand(char **token){
 			}
 			if(execvp(globbuf.gl_pathv[0], globbuf.gl_pathv) == -1){
 				int errsv = errno;
-				printf("error number is %d\n", errsv);
 				if(errsv == 2){
 					printf("[%s]: command not found\n", token[0]); 
 				}
@@ -163,7 +143,6 @@ void HandleSig(){
 
 int main(int argc, char *argv[])
 {
-	printf("My pid is %d\n", getpid());
 	HandleSig();
 	char input[MAXLENOFCOMMAND];
 	char buf[PATH_MAX + 1];
