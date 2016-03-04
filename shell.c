@@ -59,8 +59,14 @@ int *FindElement(char key, char **target){
 }
  
 int PerformBuiltIn(char **token){
-	if((strcmp(token[0], "exit") == 0) && (token[1] == NULL)){
-		exit(0);	// 0 is the return value when the program exits
+	if(strcmp(token[0], "exit") == 0){ 
+		if(token[1] == NULL){ 
+			exit(0);	// 0 is the return value when the program exits
+		}
+		else{
+			printf("exit: wrong number of arguments\n");
+			return -1;
+		}
 	}
 	else if(strcmp(token[0], "cd") == 0){
 		if(token[1] == NULL){
