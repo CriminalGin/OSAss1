@@ -15,8 +15,6 @@ Created by Gin, Feb 29, 2016, CUHK
 
 #define MAXLENOFCOMMAND 255
 
-glob_t globbuf;
-
 char **TokenInput(char *input){
 	char **token = (char **)malloc( (MAXLENOFCOMMAND + 1) * sizeof(char *));
 	char *tmp = (char *)malloc(sizeof(char) * (MAXLENOFCOMMAND + 1));
@@ -31,7 +29,23 @@ char **TokenInput(char *input){
 	return token;
 }
 
-int Count(char **token){
+int Count1dChar(char *token){
+	int num = 0;
+	while((token + num) != NULL){
+		++num;
+	}
+	return num;
+}
+
+int Count1dInt(int *token){
+	int num = 0;
+	while((token + num) != NULL){
+		++num;
+	}
+	return num;
+}
+
+int Count2d(char **token){
 	int num = 0;
 	while(token[num] != NULL){
 		++num;
@@ -39,17 +53,28 @@ int Count(char **token){
 	return num;
 }
 
-int FindElement(char key, char **target){
-	int i = 0, j;
-	while(target[i] != NULL){
-		for(j = 0; j < strlen(target[i]); ++j){
-			if(target[i][j] == key){ return i; }
-		}
-		++i;
-	}
-	return -1;
-}
 
+int *FindElement(char key, char **target){
+	int i = 0, j, k = 1;
+	int num = 0;
+	for(i = 0; i < Count2d(target); ++i){
+		for(j = 0; j < strlen(target[i]); ++j){
+			if(target[i][j] == key){ ++num; }
+		}
+	}
+	if(num == 0){ return NULL; }
+	else{
+		int *positionArray = (int *)malloc(sizeof(int) * (num + 1) );
+		for(i = 0; i < Count2d(target); ++i){
+			for(j = 0; j < strlen(target[i]); ++j){
+				if(target[i][j] == key){ positionArray[k] = i; ++k; }
+			}
+		}
+		positionArray[0] = num; 
+		return positionArray;
+	}
+}
+ 
 int PerformBuiltIn(char **token){
 	if((strcmp(token[0], "exit") == 0) && (token[1] == NULL)){
 		exit(0);	// 0 is the return value when the program exits
@@ -74,14 +99,14 @@ int PerformBuiltIn(char **token){
 		}
 	}
 }
-
+#if 1
 int PerformCommand(char **token){
 	if(!fork()){
 		printf("I am a child and my pid is %d\n", getpid());
 		setenv("PATH", "/bin:/usr/bin:.", 1);
 		signal(SIGINT, SIG_DFL);signal(SIGQUIT, SIG_DFL);signal(SIGTERM, SIG_DFL);signal(SIGTSTP, SIG_DFL);
-		int starPosition = FindElement('*', token);
-		if(starPosition == -1){
+		int *starPosition = FindElement('*', token);
+		if(starPosition == NULL){
 			if(execvp(token[0], token) == -1){ 
 				int errsv = errno;
 				printf("error number is %d\n", errsv);
@@ -93,12 +118,15 @@ int PerformCommand(char **token){
 			}
 		}
 		else{
-			int num = Count(token);	
-			globbuf.gl_offs = num - 1;
-
-			glob(token[starPosition], GLOB_DOOFFS | GLOB_NOCHECK, NULL, &globbuf);
+			int tokenNum = Count2d(token), starNum = starPosition[0];
+			glob_t globbuf;
+			globbuf.gl_offs = tokenNum - starNum;
 			int i;
-			for(i = 0; i < num; ++i){
+			glob(token[starPosition[1]], GLOB_DOOFFS | GLOB_NOCHECK, NULL, &globbuf);
+			for(i = 2; i <= starNum; ++i){
+				glob(token[starPosition[i]], GLOB_DOOFFS | GLOB_NOCHECK | GLOB_APPEND, NULL, &globbuf);
+			}
+			for(i = 0; i < globbuf.gl_offs; ++i){
 				globbuf.gl_pathv[i] = token[i];
 			}
 			if(execvp(globbuf.gl_pathv[0], globbuf.gl_pathv) == -1){
@@ -117,7 +145,7 @@ int PerformCommand(char **token){
 		wait(NULL);
 	}
 }
-
+#endif
 int Perform(char **token){
 	if(strcmp(token[0], "cd") == 0 || strcmp(token[0], "exit") == 0){ 
 		PerformBuiltIn(token);
@@ -152,4 +180,3 @@ int main(int argc, char *argv[])
 	}
 	return 0;
 }
-
