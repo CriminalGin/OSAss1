@@ -51,6 +51,17 @@ int TokenInput(char *input, char *delim, char **token){
 	return i;
 }
 
+int Seperate(int num, char **jobToken, char **cmdToken, int *times)
+{
+	int i;
+	for(i = 0; i < (num - 2); ++i){
+		cmdToken[i] = (char *)malloc(sizeof(char) * strlen(jobToken[i]));
+		while(strcpy(cmdToken[i], jobToken[i]) == NULL);
+	}
+	*times = atoi(jobToken[num - 2]);
+	return 0;
+}
+
 int Count2d(char **token){
 	int num = 0;
 	while(token[num] != NULL){
@@ -120,31 +131,41 @@ int PerformCommand(char **token){
 }
 
 int main(int argc, char *argv[]){
+	signal(SIGALRM, alarmHandler);
 	int i, j;
 	char *mode = argv[1];
 	printf("mode is %s\n", mode);
 	char **job = (char **)malloc(MAXNUMOFJOB * sizeof(char *));
 	int num = readTxt(argv[2], job);
 	char ***jobToken = (char ***)malloc(num * sizeof(char**));
+	char ***cmdToken = (char ***)malloc(num * sizeof(char**));
 	int *numOfToken = (int *)malloc(num * sizeof(int));
 	int *times = (int *)malloc(num * sizeof(int));
 	for(i = 0; i < num; ++i){
-		jobToken[i] = (char **)malloc( (MAXLENOFCOMMAND + 1) * sizeof(char *));
+		jobToken[i] = (char **)malloc( (MAXLENOFCOMMAND + 2) * sizeof(char *));
+		cmdToken[i] = (char **)malloc( (MAXLENOFCOMMAND + 1) * sizeof(char *));
 		numOfToken[i] = TokenInput(job[i], " \t", jobToken[i]);
-		times[i] = atoi(jobToken[i][numOfToken[i] - 2]);
-	}
+		while(Seperate(numOfToken[i], jobToken[i], cmdToken[i], (times + i)) != 0);
+}
 #if 1
 printf("num is %d\n", num);
 if(!strcmp(mode, "FIFO")){
 	for(i = 0; i < num; ++i){
 		pid = fork();
-		if(pid != 0){	waitpid(pid, NULL, 1);	}
-		if(pid == 0){
+		if(pid != 0){
+			printf("times[%d] = %d\n", i, times[i]);
+			alarm(times[i]);
+			waitpid(pid, NULL, 1);	
+		}
+		else if(pid == 0){
 			setenv("PATH", ":/bin:/usr/bin:.", 1);
 			printf("I am child, my pid is %d, my parent pid is %d\n", getpid(), getppid());
+			execvp(cmdToken[i][0], cmdToken[i]);
+			exit(0);
 		}
 	}
 }
+
 else if(!strcmp(mode, "PARA")){
 	printf("I have gone to the PARA\n");
 	int **pids = (int **)malloc(num * sizeof(int *));
@@ -167,9 +188,6 @@ else if(!strcmp(mode, "PARA")){
 		waitpid(pids[j][0], NULL, 0);
 	}
 }
-
-
-
 #endif
 
 #if 0
@@ -195,4 +213,5 @@ else if(!strcmp(mode, "PARA")){
 #endif
 
 	return 0;
+
 }
