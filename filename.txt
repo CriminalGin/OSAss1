@@ -1,3 +1,5 @@
 ls	10	
 ./while1	3	
-ls -l	-1	
+ls -l *.c	-1	
+ls -l sch*.c	-1	
+./while1	-1	

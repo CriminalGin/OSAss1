@@ -7,7 +7,6 @@
 #include <sys/times.h>	// Needed by times(), clock_t
 #include <string.h>
 #include <glob.h>
-#include <errno.h>
 
 #define	MAXNUMOFJOB	10
 #define MAXLENOFJOB	10000
@@ -111,45 +110,6 @@ int *FindElement(char key, char **target){
 	}
 }
 
- 
-
-int PerformCommand(char **token){
-	setenv("PATH", "/bin:/usr/bin:.", 1);
-	int *starPosition = FindElement('*', token);
-	if(starPosition == NULL){
-		if(execvp(token[0], token) == -1){
-			int errsv = errno;
-			if(errsv == 2){
-				printf("[%s]: command not found\n", token[0]); 
-			}
-			else if(errsv != 0){ printf("[%s]: unknown error\n", token[0]); }
-				exit(errsv);
-			}
-		}
-		else{
-			int tokenNum = Count2d(token), starNum = starPosition[0];
-			glob_t globbuf;
-			globbuf.gl_offs = tokenNum - starNum;
-			int i;
-			glob(token[starPosition[1]], GLOB_DOOFFS | GLOB_NOCHECK, NULL, &globbuf);
-			for(i = 2; i <= starNum; ++i){
-				glob(token[starPosition[i]], GLOB_DOOFFS | GLOB_NOCHECK | GLOB_APPEND, NULL, &globbuf);
-			}
-			for(i = 0; i < globbuf.gl_offs; ++i){
-				globbuf.gl_pathv[i] = token[i];
-			}
-			if(execvp(globbuf.gl_pathv[0], globbuf.gl_pathv) == -1){
-				int errsv = errno;
-				if(errsv == 2){
-					printf("[%s]: command not found\n", token[0]); 
-				}
-				else{ printf("[%s]: unknown error\n", token[0]); }
-				exit(errsv); 
-			}
-		}
-}
-
-
 int main(int argc, char *argv[]){
 	int i, j;
 	char *mode = argv[1];
@@ -165,7 +125,7 @@ int main(int argc, char *argv[]){
 		cmdToken[i] = (char **)malloc( (MAXLENOFCOMMAND + 1) * sizeof(char *));
 		numOfToken[i] = TokenInput(job[i], " \t", jobToken[i]);
 		while(Seperate(numOfToken[i], jobToken[i], cmdToken[i], (time + i)) != 0);
-}
+	}
 #if 1
 	// printf("num is %d\n", num);
 	clock_t startTime, endTime;
@@ -173,19 +133,33 @@ int main(int argc, char *argv[]){
 	double ticks_per_sec = (double)sysconf(_SC_CLK_TCK);
 	if(!strcmp(mode, "FIFO")){
 		signal(SIGALRM, alarmHandlerFIFO);
+		
 		for(i = 0; i < num; ++i){
-		
-		if(!(pid = fork())){
-			setenv("PATH", ":/bin:/usr/bin:.", 1);
-			execvp(cmdToken[i][0], cmdToken[i]);
-			exit(0);
-		}
-		else{
-			alarm(time[i]);
-			waitpid(pid, NULL, 0);	
-		}
-		
-		
+			if(!(pid = fork())){
+				setenv("PATH", ":/bin:/usr/bin:.", 1);
+				int *starPosition = FindElement('*',cmdToken[i]);				
+				if(starPosition == NULL){				
+					execvp(cmdToken[i][0], cmdToken[i]);
+					exit(0);}
+				else{
+					int tokenNum = Count2d(cmdToken[i]), starNum = starPosition[0];
+					glob_t globbuf;
+					globbuf.gl_offs = tokenNum - starNum;
+					glob(cmdToken[i][starPosition[1]], GLOB_DOOFFS | GLOB_NOCHECK, NULL, &globbuf);
+					for(j = 2; j < (starNum - 1 + 2); ++j){
+						glob(cmdToken[i][starPosition[j]],GLOB_DOOFFS | GLOB_NOCHECK | GLOB_APPEND, NULL, &globbuf);
+					}
+					for(j = 0; j < globbuf.gl_offs; ++j)			{
+						globbuf.gl_pathv[j] = cmdToken[i][j];
+					}
+					execvp(globbuf.gl_pathv[0], globbuf.gl_pathv);
+					exit(0);
+				}
+			}
+			else{
+				alarm(time[i]);
+				waitpid(pid, NULL, 0);	
+			}	
 	}
 }
 
@@ -193,8 +167,7 @@ int main(int argc, char *argv[]){
 		clock_t startTimes[10], endTimes[10];
 		struct tms cpuTimes[10];
 		printf("I have gone to the PARA\n");
-		for(i = 0; i < num; ++i){
-			
+		for(i = 0; i < num; ++i){			
 			signal(SIGALRM, alarmHandlerPARA);
 			if(!(pids[i][0] = fork())){
 				
